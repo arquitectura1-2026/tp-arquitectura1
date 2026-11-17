@@ -260,19 +260,20 @@ Se comparan tres alternativas contra un baseline, que por definición puntúa 0 
 | Proveedor de identidad | Keycloak | Login y roles (propietario, administrador), con el realm versionado en el repo | En el compose desde el 29/10 |
 | Interfaz web | HTML + JavaScript (con la librería `keycloak-js`), servido por nginx sin root | Pantallas para el propietario (sus expensas y el código de pago) y para el administrador (todas las expensas, conciliar y revisar las cobranzas). Es un cliente público de la API, como Swagger UI: llama al gateway con el token del usuario (ADR-011) | En el compose desde el 07/11 |
 
-**Memoria de cada contenedor** (medida con `docker stats` el 29/10, con el sistema en reposo, en Docker Desktop sobre Windows):
+**Memoria de cada contenedor** (medida con `docker stats` el 17/11, con el sistema recién levantado desde cero, en Docker Desktop sobre Windows; prueba 23):
 
 | Contenedor | Memoria |
 |---|---:|
-| Proveedor de identidad (Keycloak) | 725,2 MiB |
-| Base de datos (PostgreSQL) | 40,2 MiB |
-| Gateway | 21,5 MiB |
-| API de expensas | 14,7 MiB |
-| Swagger UI | 13,5 MiB |
-| Banco simulado | 9,4 MiB |
-| **Total** | **824,5 MiB** |
+| Proveedor de identidad (Keycloak) | 711,6 MiB |
+| Base de datos (PostgreSQL) | 60,2 MiB |
+| API de expensas | 24,2 MiB |
+| Gateway | 21,4 MiB |
+| Swagger UI | 12,1 MiB |
+| Banco simulado | 11,0 MiB |
+| Interfaz web (nginx) | 8,9 MiB |
+| **Total** | **849,3 MiB** |
 
-El proveedor de identidad es el 88 % de la memoria del sistema: es el costo más alto de delegar la autenticación (ADR-005). Aun así, todo el sistema entra en un servidor de 2 GB, como pide el NFR de costo. Es una medición en reposo y sin carga, y el banco simulado no forma parte del despliegue real.
+El proveedor de identidad es el 84 % de la memoria del sistema: es el costo más alto de delegar la autenticación (ADR-005). La interfaz web suma menos de 9 MiB (ADR-011). Aun así, todo el sistema entra en un servidor de 2 GB, como pide el NFR de costo. Es una medición sin carga, y el banco simulado no forma parte del despliegue real.
 
 **Sistema externo:** el banco, con su servicio SOAP heredado. La API se autentica ante él con una API key (ADR-010). En el compose se simula con un servicio `banco-mock`, pero en el diagrama se muestra como externo porque no es parte del sistema.
 
@@ -461,17 +462,24 @@ Autenticar y autorizar es una capa de la seguridad. Las demás se resuelven así
 
 ## 11. Verificación de NFRs
 
-Los NFRs se verificaron con 18 pruebas manuales sobre el sistema levantado con `docker compose`. La guía completa, con los pasos, el resultado esperado, el obtenido y las capturas de cada prueba, está en [verificacion.md](verificacion.md).
+Cada escenario de calidad (sección 3.3) tiene su verificación y su evidencia en el repositorio. Se verificaron con **23 pruebas**: 21 manuales, con sus pasos, el resultado esperado, el obtenido y las capturas en [verificacion.md](verificacion.md), una prueba de carga automática con umbrales ([`pruebas/carga.js`](../pruebas/carga.js)) y una consulta sobre la base. Todas dieron el resultado esperado.
 
-| NFR | Pruebas | Qué se verificó | Resultado |
-|---|---|---|---|
-| ★ 1 Consistencia | 1 a 6 | Un pago con el monto exacto se imputa; reprocesar el mismo día no duplica nada; un monto distinto, un código inexistente o un segundo pago de la misma expensa quedan observados con su motivo; varias conciliaciones al mismo tiempo no imputan dos veces | ✔ 0 expensas con más de un pago imputado; todas las cobranzas del listado quedaron imputadas u observadas |
-| ★ 1b Consistencia de la liquidación | 7 | El total de la expensa es la suma de sus conceptos, al centavo | ✔ a nivel de expensa |
-| ★ 2 Simplicidad | 18 | El sistema completo se levanta con `docker compose up -d --build` | ✔ 6 contenedores, un solo comando |
-| 3 Recuperación sin guardia | 8 a 11 | Con el banco caído la corrida queda registrada con error y se reintenta; la conciliación automática imputa sola, reintenta sola cuando el banco vuelve y se pone al día con los días atrasados, en orden | ✔ 0 intervenciones manuales en las pruebas 9 a 11 |
-| 4 Seguridad | 12 a 17 | Sin token o con un token adulterado: 401; un propietario no puede conciliar ni ver expensas ajenas: 403; los headers de identidad que manda el cliente se ignoran; la API no se alcanza directo y su usuario de base no puede borrar | ✔ el 100 % de los accesos a expensas ajenas se rechazó |
-| 5 Costo | 18 | Consumo de memoria medido con `docker stats` | ✔ unos 730 MiB en total, dentro de un servidor de 2 GB. Keycloak usa la mayor parte (unos 634 MiB) |
-| 6 Performance | — | — | No se midió en esta etapa |
+| Escenario | Medida | Cómo se verificó | Evidencia | Resultado |
+|---|---|---|---|---|
+| **E1** · El mismo pago informado dos veces se imputa una sola vez (★ 1) | 0 expensas con más de un pago imputado · el 100 % del listado imputado u observado | Pago exacto, reproceso, monto distinto, código inexistente, segundo pago de la misma expensa y 5 conciliaciones al mismo tiempo; el caso de uso completo desde la interfaz | Pruebas 1 a 6 y 21 | ✔ Una sola imputación por expensa en todos los casos; lo que no coincidía quedó observado con su motivo; 4 de 5 conciliaciones simultáneas recibieron 409 |
+| **E2** · La liquidación cuadra (★ 1b) | Diferencia de 0 centavos | El total de una expensa contra la suma de sus conceptos, y el total de gastos de cada liquidación contra la suma de sus expensas | Pruebas 7 y 22 | ✔ Diferencia 0 en la expensa y en las 6 liquidaciones |
+| **E3** · Levantarlo sin ayuda (★ 2) | Un solo comando · menos de 30 minutos desde clonar | Clonar en una carpeta nueva y levantar siguiendo el README | Prueba 23 | ✔ Un solo comando; 11,9 s con las imágenes base ya descargadas |
+| **E4** · Falla del banco (3) | 0 cobranzas perdidas · 0 intervenciones · concilia dentro de los 30 minutos posteriores a que el banco vuelve | Banco caído en una conciliación manual; conciliación automática que imputa sola, que reintenta sola y que se pone al día con días atrasados | Pruebas 8 a 11 | ✔ Sin intervención en las pruebas 9 a 11; el reintento imputó en cuanto el banco volvió (con reintento configurado en 1 minuto) |
+| **E5** · Caída de la base (3) | 0 datos perdidos · servicio normal sin reiniciar la API | Resiliencia: `docker compose stop db`, observar y `docker compose start db` | Prueba 19 | ✔ 503 con `Retry-After` mientras estuvo caída; la API siguió viva y volvió sola, con los datos intactos |
+| **E6** · Acceso indebido (4) | El 100 % de los accesos indebidos se rechaza | Sin token, token adulterado, propietario que concilia o pide una expensa ajena, encabezados de identidad falsos, la API desde afuera y su usuario de base intentando borrar; la interfaz por rol | Pruebas 12 a 17 y 21 | ✔ Todos rechazados (401 o 403); la API no es alcanzable y su usuario no puede borrar |
+| **E7** · Costo (5) | Menos de 2 GB de memoria | `docker stats` con los 7 contenedores | Pruebas 18 y 23 | ✔ 849 MiB en total (sección 6) |
+| **E8** · Performance (6) | p95 < 1 s · menos del 1 % de errores con 50 usuarios simultáneos | Prueba de carga con k6 a través del gateway, con umbrales | Prueba 20, [`pruebas/carga-resumen.json`](../pruebas/carga-resumen.json) | ✔ p95 = 4,74 ms y 0 % de errores en 8.252 pedidos |
+
+**Límites de la verificación**
+
+- Las mediciones de tiempo y memoria son en computadoras de desarrollo, no en el servidor de producción: sirven para comparar y para mostrar el margen a la escala del escenario.
+- La prueba de carga es una fitness function: si un umbral no se cumple, k6 termina con error. Las demás pruebas son manuales; para repetirlas está la guía.
+- TLS y el segundo factor no se verifican porque están desactivados en la demo, por decisión (ADR-009).
 
 ## 12. Evaluación de la arquitectura
 

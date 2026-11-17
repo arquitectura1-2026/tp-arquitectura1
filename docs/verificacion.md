@@ -26,6 +26,9 @@ Guía de pruebas manuales sobre el sistema levantado con `docker compose`. Cada 
 | 18 | ★2 Simplicidad · 5 Costo | Cantidad de contenedores y consumo de memoria | Fernando | ✔ |
 | 19 | 3 Recuperación sin guardia | Caída de la base de datos (resiliencia) | Fernando | ✔ |
 | 20 | 6 Performance | Carga: 50 usuarios simultáneos consultando su expensa | Nicolás | ✔ |
+| 21 | 4 Seguridad · ★1 Consistencia | La interfaz web por rol: el caso de uso de punta a punta | Fernando | ✔ |
+| 22 | ★1b Liquidación cuadra | El prorrateo de cada liquidación suma el total de gastos | Fernando | ✔ |
+| 23 | ★2 Simplicidad · 5 Costo | Levantar el sistema desde cero y medir la memoria con los 7 contenedores | Fernando | ✔ |
 
 ## Preparación
 
@@ -547,3 +550,98 @@ Es una medición en una computadora de desarrollo, no en el servidor de producci
 ![Prueba-20a.png](verificacion/Prueba-20a.png)
 
 ![Prueba-20b.png](verificacion/Prueba-20b.png)
+
+### Prueba 21 · La interfaz web por rol: el caso de uso de punta a punta
+
+**NFR:** 4 Seguridad y ★1 Consistencia (escenarios E6 y E1), desde la interfaz web (ADR-011)
+
+**Pasos:**
+
+1. En http://localhost:3001, **Ingresar** como `paula` / `paula123`. Mirar qué expensas y qué pestañas aparecen.
+2. Entrar a una de sus expensas que esté **Emitida** y tocar **Obtener código de pago**. Anotar el código y el importe.
+3. En la consola del banco (http://localhost:8090), registrar un pago con ese código, ese importe en pesos (por ejemplo `52600,03`) y la fecha de hoy.
+4. **Salir** y entrar como `adriana` / `adriana123`. Mirar qué expensas y qué pestañas aparecen. En **Conciliar**, conciliar la fecha de hoy.
+5. Volver a entrar como `paula` y abrir la misma expensa.
+
+**Resultado esperado:** paula ve solo sus 2 expensas y ninguna pestaña de administrador; el código de pago aparece con su importe. adriana ve todas las expensas y las pestañas **Conciliar** y **Cobranzas**; la corrida muestra `Imputadas 1`. Al volver, paula ve la expensa **Pagada**, con la fecha y la operación del banco.
+
+**Resultado obtenido:** paula ve solo sus 2 expensas (2B y 1A, las dos Emitidas) y ninguna pestaña de administrador. En la expensa 1 (unidad 2B), **Obtener código de pago** muestra `00000000018` por $ 50.200,01. Con el pago registrado en el banco (OP-0001, del 17/11), adriana ve todas las expensas con las pestañas Conciliar y Cobranzas, y la conciliación del 17/11 da `Leídas 1 · Imputadas 1 · Observadas 0`. Al volver, paula ve la expensa **Pagada**: "Pagada el 2026-11-17 por $ 50.200,01 (operación del banco OP-0001)".
+
+**Captura:**
+
+![Prueba-21a.png](verificacion/Prueba-21a.png)
+
+![Prueba-21b.png](verificacion/Prueba-21b.png)
+
+![Prueba-21c.png](verificacion/Prueba-21c.png)
+
+![Prueba-21d.png](verificacion/Prueba-21d.png)
+
+![Prueba-21e.png](verificacion/Prueba-21e.png)
+
+![Prueba-21f.png](verificacion/Prueba-21f.png)
+
+### Prueba 22 · El prorrateo de cada liquidación suma el total de gastos
+
+**NFR:** ★1b Consistencia de la liquidación (escenario E2)
+
+**Pasos:**
+
+```powershell
+docker compose exec db psql -U api_expensas -d expensas -c "SELECT g.liquidacion_id, g.total AS total_gastos, x.total AS suma_expensas, x.total - g.total AS diferencia FROM (SELECT liquidacion_id, SUM(monto_centavos) AS total FROM gastos GROUP BY 1) g JOIN (SELECT e.liquidacion_id, SUM(c.monto_centavos) AS total FROM expensas e JOIN expensa_conceptos c ON c.expensa_id = e.id AND c.tipo = 'ORDINARIA' GROUP BY 1) x USING (liquidacion_id) ORDER BY 1;"
+```
+
+La consulta compara, para cada liquidación, el total de los gastos con la suma de la parte ordinaria de todas sus expensas.
+
+**Resultado esperado:** una fila por liquidación (6) y la columna `diferencia` en **0** en todas: el prorrateo cuadra al centavo.
+
+**Resultado obtenido:** 6 filas, una por liquidación, con `diferencia` en **0** en todas (por ejemplo, la liquidación 1: 113.000.021 centavos de gastos y 113.000.021 de expensas). El prorrateo cuadra al centavo.
+
+**Captura:**
+
+![Prueba-22.png](verificacion/Prueba-22.png)
+
+### Prueba 23 · Levantar el sistema desde cero y medir la memoria
+
+**NFR:** ★2 Simplicidad y 5 Costo (escenarios E3 y E7)
+
+Se levanta el sistema como lo haría alguien que no lo conoce: en una carpeta nueva y siguiendo solo el README.
+
+**Pasos:**
+
+1. Bajar el sistema que esté corriendo, para liberar los puertos (en la carpeta de siempre):
+   ```powershell
+   docker compose down
+   ```
+2. En otra carpeta, clonar el repositorio y levantarlo midiendo el tiempo:
+   ```powershell
+   cd $HOME\Desktop
+   git clone https://github.com/arquitectura1-2026/tp-arquitectura1.git tp-desde-cero
+   cd tp-desde-cero
+   copy .env.example .env
+   Measure-Command { docker compose up -d --build } | Select-Object TotalSeconds
+   docker compose ps
+   ```
+   Repetir `docker compose ps` hasta que Keycloak figure `healthy`, y anotar cuánto tardó en total desde el `git clone`.
+3. Con todo arriba, entrar a la interfaz web como paula (para comprobar que funciona) y medir la memoria:
+   ```powershell
+   docker stats --no-stream
+   ```
+4. Limpiar y volver a la carpeta de siempre:
+   ```powershell
+   docker compose down -v
+   cd ..
+   Remove-Item -Recurse -Force tp-desde-cero
+   ```
+
+**Resultado esperado:** el sistema se levanta con un solo comando (`docker compose up -d --build`), en menos de 30 minutos desde el `git clone`, con 7 contenedores. La memoria total queda por debajo de 2 GB.
+
+**Resultado obtenido:** Clonado en una carpeta nueva, con `copy .env.example .env` y **un solo comando**: `docker compose up -d --build` terminó en **11,9 segundos**, con los 7 contenedores creados y la base `healthy`. La entrada como paula a la interfaz web funcionó. Las imágenes base ya estaban descargadas en esa computadora; en una sin ellas se suma la descarga, que lleva unos minutos. Memoria con los 7 contenedores: keycloak 711,6 MiB, db 60,2 MiB, api 24,2 MiB, gateway 21,4 MiB, swagger-ui 12,1 MiB, banco-mock 11,0 MiB y web 8,9 MiB. **Total: unos 849 MiB**, por debajo de 2 GB.
+
+**Captura:**
+
+![Prueba-23a.png](verificacion/Prueba-23a.png)
+
+![Prueba-23b.png](verificacion/Prueba-23b.png)
+
+![Prueba-23c.png](verificacion/Prueba-23c.png)
