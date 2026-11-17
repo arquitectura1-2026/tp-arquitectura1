@@ -8,6 +8,7 @@
 | 22/10 | Pugh, estilo, C4 de Contenedores, modelo de dominio, OpenAPI; el compose levanta | ✔ |
 | 29/10 | Login con el proveedor de identidad, gateway y permisos por rol | ✔ |
 | 05/11 | Caso de uso, ADRs y verificación de NFRs | ✔ |
+| 19/11 | Interfaz web, escenarios de calidad y utility tree, evaluación de la arquitectura, Twelve-Factor y verificación completa (23 pruebas) | ✔ |
 
 ---
 
@@ -361,7 +362,7 @@ El contrato completo va en `openapi.yaml` y se muestra con Swagger UI. Incluye s
 **Criterios de diseño**
 
 - **REST** sobre recursos del dominio, con los verbos y códigos de estado HTTP que corresponden.
-- **Versionado en la URI** (`/v1`).
+- **Versionado en la URI** (`/v1`). Los cambios compatibles (un campo nuevo en una respuesta, un parámetro opcional) se agregan en `/v1`. Un cambio incompatible saldría en `/v2`, conviviendo con `/v1` hasta que los clientes (la interfaz web y Swagger UI) migren.
 - **Errores con Problem Details** (`application/problem+json`).
 - **`PUT` para el código de pago:** si el propietario reintenta (por ejemplo, porque se le cortó la conexión), tiene que recibir el mismo código y no uno nuevo. `PUT` es idempotente por definición: la primera vez crea el código (201) y las siguientes lo devuelven (200).
 - **Seguridad:** todas las operaciones, salvo `/health`, requieren un token de acceso (`securitySchemes` del contrato). Los permisos de cada rol están en la sección 9.

@@ -2,6 +2,7 @@
 
 **Trabajo Práctico Integrador · Arquitectura de Software 1 · UNAHUR**
 Dominio 5 · Expensas de consorcios · Escenario **5A — Administrador independiente**
+Grupo **CINCOA** · Casillero: Expensas de consorcios 5A
 
 ## Integrantes
 
@@ -10,16 +11,19 @@ Dominio 5 · Expensas de consorcios · Escenario **5A — Administrador independ
 
 ## Documentación
 
-- [Documento de arquitectura](docs/arquitectura.md): problema y escenario, dominio, NFRs, matriz de Pugh y estilo, C4 de Contexto y de Contenedores, modelo de dominio, API, seguridad y verificación de los NFRs.
+- [Documento de arquitectura](docs/arquitectura.md): problema y escenario, dominio, NFRs priorizados y restricciones, escenarios de calidad y utility tree, matriz de Pugh y estilo, C4 de Contexto y de Contenedores, modelo de dominio, API, seguridad, verificación de los NFRs, evaluación de la arquitectura (ATAM liviano) y checklist Twelve-Factor.
 - [Decisiones de arquitectura (ADRs)](docs/adr/): ADR-001 a ADR-011.
 - [Contrato de la API (OpenAPI)](openapi.yaml)
-- [Verificación manual de los NFRs](docs/verificacion.md): 18 pruebas con sus resultados y capturas.
+- [Verificación de los NFRs](docs/verificacion.md): 23 pruebas con sus resultados y capturas (21 manuales, una de carga con k6 y una consulta sobre la base).
+- [Prueba de carga](pruebas/carga.js): script de k6 con umbrales y su [resultado](pruebas/carga-resumen.json).
 
 ## Cómo levantarlo
 
 Requisito: Docker Desktop (o Podman Desktop) funcionando.
 
 ```bash
+git clone https://github.com/arquitectura1-2026/tp-arquitectura1.git
+cd tp-arquitectura1
 cp .env.example .env          # en PowerShell: copy .env.example .env
 docker compose up -d --build
 docker compose ps
@@ -112,9 +116,22 @@ $env:CONCILIACION_HORA="00:00"; docker compose up -d api
 docker compose logs api
 ```
 
+## Prueba de carga
+
+Con el sistema levantado y el token de `paula` copiado de Swagger UI (dura 5 minutos), desde la carpeta del repositorio:
+
+```powershell
+$T = "<token>"
+$RED = docker network ls --filter name=_backend --format "{{.Name}}"
+docker run --rm --network $RED -v "${PWD}/pruebas:/pruebas" -e TOKEN=$T grafana/k6:1.0.0 run --summary-export=/pruebas/carga-resumen.json /pruebas/carga.js
+```
+
+k6 corre en un contenedor dentro de la red interna del compose, que se llama `<carpeta del repositorio>_backend`; la segunda línea la busca. Los umbrales y el resultado están en la prueba 20 de la [verificación](docs/verificacion.md).
+
 ## Estado del avance
 
 - **15/10:** dominio y escenario, NFRs y C4 de Contexto.
 - **22/10:** matriz de Pugh y estilo (monolito modular), C4 de Contenedores, modelo de dominio, contrato OpenAPI, primeros ADRs y compose levantando todos los servicios.
 - **29/10:** login con Keycloak (OIDC, Authorization Code + PKCE) y dos roles; gateway que valida el token y aplica los permisos por rol; la API resuelve la regla fina (cada propietario ve y paga solo lo suyo) y quedó sin puerto publicado.
 - **05/11:** el caso de uso completo contra la base: código de pago, conciliación con el banco por SOAP (capa anticorrupción y API key) con las garantías contra el cobro doble, y conciliación automática diaria. Mínimo privilegio en la base y en los contenedores, headers de seguridad en el gateway, ADR-001 a ADR-010 y verificación manual de los NFRs con 18 pruebas.
+- **19/11 (entrega final):** interfaz web para el propietario y el administrador (ADR-011); NFRs como escenarios de calidad, utility tree y restricciones; resiliencia ante la caída de la base (503 y recuperación sola); prueba de carga con k6 (p95 de 4,74 ms con 50 usuarios); evaluación de la arquitectura (ATAM liviano), con reinicio automático de los servicios; Confirmación en los 11 ADRs; checklist Twelve-Factor; y verificación completa de los NFRs con 23 pruebas.
