@@ -126,7 +126,7 @@ $RED = docker network ls --filter name=_backend --format "{{.Name}}"
 docker run --rm --network $RED -v "${PWD}/pruebas:/pruebas" -e TOKEN=$T grafana/k6:1.0.0 run --summary-export=/pruebas/carga-resumen.json /pruebas/carga.js
 ```
 
-k6 corre en un contenedor dentro de la red interna del compose, que se llama `<carpeta del repositorio>_backend`; la segunda línea la busca. Los umbrales y el resultado están en la prueba 20 de la [verificación](docs/verificacion.md).
+k6 corre en un contenedor dentro de la red interna del compose, que se llama `<carpeta del repositorio>_backend`; la segunda línea la busca (si tenés el sistema levantado desde dos carpetas distintas, aparece más de una: dejá solo la de esta carpeta). Los umbrales y el resultado están en la prueba 20 de la [verificación](docs/verificacion.md).
 
 ## Estado del avance
 

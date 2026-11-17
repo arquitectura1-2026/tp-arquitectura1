@@ -352,7 +352,7 @@ El contrato completo va en `openapi.yaml` y se muestra con Swagger UI. Incluye s
 
 | Método y ruta | Rol | Para qué |
 |---|---|---|
-| `GET /v1/expensas?periodo=` | propietario / administrador | El propietario ve las expensas de sus unidades; el administrador, todas |
+| `GET /v1/expensas?periodo=&estado=` | propietario / administrador | El propietario ve las expensas de sus unidades; el administrador, todas |
 | `GET /v1/expensas/{id}` | propietario / administrador | Detalle de una expensa con sus conceptos y su estado |
 | `PUT /v1/expensas/{id}/codigo-pago` | propietario (las suyas) / administrador | Obtiene el código de pago |
 | `POST /v1/conciliaciones` | administrador | Descarga del banco el listado de una fecha y lo concilia a mano (la conciliación automática corre sola cada mañana, ADR-004) |
@@ -445,6 +445,8 @@ Autenticar y autorizar es una capa de la seguridad. Las demás se resuelven así
 | Aplicación web | El gateway agrega headers de seguridad, el CORS solo admite los orígenes propios (Swagger UI y la interfaz web) y los errores no exponen detalles internos. La interfaz tiene una política de seguridad de contenido (CSP) que solo permite sus propios archivos y las llamadas al gateway y al proveedor de identidad, y muestra los datos siempre como texto, nunca como HTML | ADR-006, ADR-011 |
 | Secretos | Las contraseñas reales van en el `.env`, fuera del repositorio. Las de los usuarios de prueba están en el realm versionado porque son de demostración; en producción vendrían de un gestor de secretos | — |
 
+---
+
 ## 10. Decisiones de arquitectura (ADRs)
 
 | ADR | Decisión | Estado |
@@ -460,6 +462,8 @@ Autenticar y autorizar es una capa de la seguridad. Las demás se resuelven así
 | [ADR-009](adr/ADR-009-tls-y-mfa.md) | TLS y segundo factor: diseñados para producción, desactivados en la demo | Aceptada |
 | [ADR-010](adr/ADR-010-autenticacion-con-el-banco.md) | Autenticación con el banco mediante API key | Aceptada |
 | [ADR-011](adr/ADR-011-interfaz-web.md) | Interfaz web estática, en su propio contenedor | Aceptada |
+
+---
 
 ## 11. Verificación de NFRs
 
@@ -481,6 +485,8 @@ Cada escenario de calidad (sección 3.3) tiene su verificación y su evidencia e
 - Las mediciones de tiempo y memoria son en computadoras de desarrollo, no en el servidor de producción: sirven para comparar y para mostrar el margen a la escala del escenario.
 - La prueba de carga es una fitness function: si un umbral no se cumple, k6 termina con error. Las demás pruebas son manuales; para repetirlas está la guía.
 - TLS y el segundo factor no se verifican porque están desactivados en la demo, por decisión (ADR-009).
+
+---
 
 ## 12. Evaluación de la arquitectura
 
@@ -539,6 +545,8 @@ Como pide la Clase 13, cada riesgo termina en una decisión, una verificación o
 | R2 · Nadie levanta la API si se cae | **Resuelto:** todos los servicios del compose tienen `restart: unless-stopped`, así que Docker los vuelve a levantar solos. Al arrancar, la API marca las corridas interrumpidas y las reintenta (ADR-004) |
 | R3 · Sin aviso si el banco falla varios días | **Aceptado, con mitigación:** la ventana de 7 días cubre un fin de semana largo, y el administrador ve las corridas con error. Un aviso por correo queda como mejora futura |
 | R4 · Sin TLS ni segundo factor en la demo | **Aceptado para la demo**, diseñado para producción (ADR-009) |
+
+---
 
 ## 13. Checklist Twelve-Factor
 

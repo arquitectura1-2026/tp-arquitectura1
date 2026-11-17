@@ -144,7 +144,7 @@ paths:
               description: URI del código de pago
               schema:
                 type: string
-                example: /v1/expensas/12/codigo-pago
+                example: /v1/expensas/1/codigo-pago
           content:
             application/json:
               schema:
@@ -163,8 +163,8 @@ paths:
                 type: about:blank
                 title: Expensa ya pagada
                 status: 409
-                detail: La expensa 12 ya está pagada; no se puede generar un código de pago.
-                instance: /v1/expensas/12/codigo-pago
+                detail: La expensa 1 ya está pagada; no se puede generar un código de pago.
+                instance: /v1/expensas/1/codigo-pago
 
   /v1/conciliaciones:
     post:
@@ -237,6 +237,8 @@ paths:
       summary: Obtener una corrida de conciliación
       operationId: obtenerConciliacion
       responses:
+        '400':
+          $ref: '#/components/responses/Invalido'
         '401':
           $ref: '#/components/responses/NoAutenticado'
         '403':
@@ -306,7 +308,7 @@ components:
       required: true
       schema:
         type: integer
-        example: 12
+        example: 1
 
   schemas:
     Dinero:
@@ -316,7 +318,7 @@ components:
       properties:
         centavos:
           type: integer
-          example: 5280000
+          example: 5020001
         moneda:
           type: string
           enum: [ARS]
@@ -333,7 +335,7 @@ components:
       properties:
         id:
           type: integer
-          example: 12
+          example: 1
         consorcio:
           type: string
           example: Edificio Av. Vergara 1200
@@ -384,11 +386,11 @@ components:
       properties:
         expensaId:
           type: integer
-          example: 12
+          example: 1
         codigoPago:
           type: string
           description: Código para pagar en el banco (incluye dígito verificador)
-          example: '00000000125'
+          example: '00000000018'
         importe:
           $ref: '#/components/schemas/Dinero'
         vencimiento:
@@ -447,10 +449,10 @@ components:
         referenciaBanco:
           type: string
           description: Identificador de la operación en el banco (único)
-          example: OP-20261021-0004
+          example: OP-0004
         codigoPago:
           type: string
-          example: '00000000125'
+          example: '00000000018'
         monto:
           $ref: '#/components/schemas/Dinero'
         fechaPago:
@@ -468,7 +470,7 @@ components:
         expensaId:
           type: integer
           nullable: true
-          example: 12
+          example: 1
     ProblemDetails:
       description: Formato de error estándar (RFC 9457, antes RFC 7807)
       type: object

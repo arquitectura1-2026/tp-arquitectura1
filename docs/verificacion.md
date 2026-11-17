@@ -1,6 +1,6 @@
-# Verificación manual de los NFRs
+# Verificación de los NFRs
 
-Guía de pruebas manuales sobre el sistema levantado con `docker compose`. Cada prueba indica qué NFR verifica, los pasos, el resultado esperado y el obtenido. Las capturas están en [`verificacion/`](verificacion/), con el número de la prueba al principio del nombre (por ejemplo `Prueba-1a.png`).
+Guía de las pruebas sobre el sistema levantado con `docker compose`. Son 23: 21 manuales, una prueba de carga automática con k6 (la 20) y una consulta sobre la base (la 22). Cada prueba indica qué NFR verifica, los pasos, el resultado esperado y el obtenido. Las capturas están en [`verificacion/`](verificacion/), con el número de la prueba al principio del nombre (por ejemplo `Prueba-1a.png`).
 
 ## Resumen
 
@@ -34,6 +34,7 @@ Guía de pruebas manuales sobre el sistema levantado con `docker compose`. Cada 
 
 | Qué | Dónde |
 |---|---|
+| Interfaz web (pantallas del propietario y del administrador) | http://localhost:3001 |
 | Swagger UI (para llamar a la API) | http://localhost:8080 |
 | Gateway (para las pruebas con `curl.exe`) | http://localhost:8000 |
 | Consola del banco simulado (cargar pagos y simular caídas) | http://localhost:8090 |
@@ -534,6 +535,7 @@ Prueba de carga con [k6](https://k6.io), con umbrales: si no se cumplen, k6 term
    ```powershell
    docker run --rm --network integrador-arquitectura1_backend -v "${PWD}/pruebas:/pruebas" -e TOKEN=$T grafana/k6:1.0.0 run --summary-export=/pruebas/carga-resumen.json /pruebas/carga.js
    ```
+   La red interna se llama `<carpeta del repositorio>_backend` (acá, `integrador-arquitectura1_backend`). Si el repositorio está en una carpeta con otro nombre, el README tiene el comando que la busca sola.
 3. Anotar el entorno:
    ```powershell
    docker info --format "{{.NCPU}} CPU · {{.MemTotal}} bytes de memoria · {{.OperatingSystem}}"

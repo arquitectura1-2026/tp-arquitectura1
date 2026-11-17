@@ -6,7 +6,7 @@ services:
   # Base de datos. No publica puertos: solo la ven los servicios de la red "backend".
   db:
     image: postgres:16-alpine
-    restart: unless-stopped   # si el proceso se cae, Docker lo vuelve a levantar (sin guardia; ver la sección 12)
+    restart: unless-stopped   # si el proceso se cae, Docker lo vuelve a levantar (sin guardia; ver docs/arquitectura.md, sección 12)
     environment:
       POSTGRES_DB: ${DB_NAME:-expensas}
       POSTGRES_USER: ${DB_USER:-expensas}
